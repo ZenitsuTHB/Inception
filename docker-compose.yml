@@ -1,0 +1,8 @@
+# Fichier : docker-compose.yml
+services:
+  nginx:
+    build: ./srcs/nginx
+    container_name: nginx
+    ports:
+      - "8080:80"
+    restart: unless-stopped
