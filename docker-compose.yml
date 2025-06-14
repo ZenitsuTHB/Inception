@@ -1,8 +1,52 @@
 # Fichier : docker-compose.yml
+
+networks:
+  appnet: {} 
+
+volumes: 
+  wp:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${WP_VOLUME}
+
+  db:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MDB_VOLUME}
+
 services:
   nginx:
-    build: ./srcs/nginx
+    build:
+      context: ./srcs/nginx
+      args:
+        - ${DOMAIN_NAME}
     container_name: nginx
+    image: nginx
+    networks:
+      - ${NETWORK}
+    volumes:
+      - "wp:/var/www/html"
     ports:
-      - "8080:80"
+      - "443:443"
     restart: unless-stopped
+  
+  mariadb:
+    build:
+      context: ./srcs/mariadb
+    container_name: mariadb
+    image: mariadb
+    environment:
+      - MARIADB_PORT
+      - MDB_DIR
+    networks:
+      - ${NETWORK}
+    volumes:
+      - "db:/var/lib/mysql"
+    expose:
+      - "${MARIADB_PORT}"
+    restart: unless-stopped
+

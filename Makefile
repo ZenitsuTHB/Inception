@@ -1,11 +1,14 @@
 # Fichier : Makefile
+
+DOCKER= docker
+COMPOSE= ${DOCKER} compose
+
+MANDATORY_PATH= -f ./docker-compose.yml
+
 all: build up
 
-build:
-	docker-compose build
-
 up:
-	docker-compose up -d
+	${COMPOSE} ${MANDATORY_PATH} up --build -d
 
 down:
 	docker-compose down

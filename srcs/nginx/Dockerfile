@@ -1,6 +1,8 @@
 # Fichier : nginx/Dockerfile
 # Nous choisissons Alpine pour sa légèreté
-FROM alpine:3.18
+FROM alpine:3.21
+
+ARG DOMAIN_NAME
 
 # Installons NGINX et OpenSSL (pour TLS)
 RUN apk update && apk add --no-cache nginx openssl
@@ -12,10 +14,10 @@ RUN mkdir -p /etc/nginx/ssl
 RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/nginx/ssl/nginx.key \
     -out /etc/nginx/ssl/nginx.crt \
-    -subj "/C=FR/ST=Paris/L=Paris/O=42/CN=localhost"
+    -subj "/C=FR/ST=Paris/L=Paris/O=42/CN=$DOMAIN_NAME"
 
 # Copions la configuration NGINX
-COPY default.conf /etc/nginx/default.conf
+COPY default.conf /etc/nginx/nginx.conf
 
 # Exposons le port 443 (HTTPS)
 EXPOSE 443
