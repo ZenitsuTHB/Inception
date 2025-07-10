@@ -9,6 +9,7 @@ all: build up
 
 up:
 	${COMPOSE} ${MANDATORY_PATH} up --build -d
+	mkdir -p $(HOME)/data/mysql $(HOME)/data/wordpress
 
 down:
 	docker-compose down
