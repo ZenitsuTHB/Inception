@@ -1,5 +1,11 @@
 # Fichier : docker-compose.yml
 
+secrets:
+  mdb_user_password:
+    file: ${SECRETS}/mdb_user_password.txt
+  mdb_root_password:
+    file: ${SECRETS}/mdb_root_password.txt
+
 networks:
   appnet: {} 
 
@@ -42,6 +48,12 @@ services:
     environment:
       - MARIADB_PORT
       - MDB_DIR
+      - MYSQL_DATABASE
+      - MYSQL_ROOT
+      - MYSQL_USER
+    secrets:
+      - mdb_user_password
+      - mdb_root_password
     networks:
       - ${NETWORK}
     volumes:
