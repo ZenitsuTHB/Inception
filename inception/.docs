@@ -1,0 +1,27 @@
+USE wordpress;
+
+CREATE TABLE posts (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255),
+    content TEXT
+);
+
+INSERT INTO posts (title, content) VALUES ('Hello World', 'This is my first post.');
+INSERT INTO posts (title, content) VALUES ('Second Post', 'Practicing CRUD operations.');
+
+SELECT * FROM posts;
+
+UPDATE posts SET title='Updated Title' WHERE id=1;
+
+DELETE FROM posts WHERE id=2;
+
+SELECT * FROM posts;
+
+docker stop mariadb
+docker rm mariadb
+sudo rm -rf /home/avolcy/data/mariadb
+docker image rm $(docker images | grep mariadb | awk '{print $3}')
+
+Run this to delete all <none> images:
+
+docker rmi $(docker images -f "dangling=true" -q)

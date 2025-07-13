@@ -7,7 +7,7 @@ down:
 	docker compose -f srcs/docker-compose.yml down
 
 clean: down
-	rm -rf /home/$(LOGIN)data
+	sudo rm -rf /home/$(LOGIN)data
 
 fclean: clean
 	docker system prune -af --volumes

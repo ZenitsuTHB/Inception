@@ -1,41 +1,41 @@
 version: '3.9'
 
 services:
-  nginx:
-    build: ./requirements/nginx
-    container_name: nginx
-    ports:
-      - "443:443"
-    volumes:
-      - ./data/wordpress:/var/www/html
-    depends_on:
-      - wordpress
-    restart: always
-    networks:
-      - inception
-
-  wordpress:
-    build: ./requirements/wordpress
-    container_name: wordpress
-    volumes:
-      - ./data/wordpress:/var/www/html
-    environment:
-      - DOMAIN_NAME=${DOMAIN}
-      - WORDPRESS_DB_HOST=mariadb:3306
-      - WORDPRESS_DB_NAME=${DB_NAME}
-      - WORDPRESS_DB_USER=${DB_USER}
-      - WORDPRESS_DB_PASSWORD=${DB_PASS}
-    depends_on:
-      - mariadb
-    restart: always
-    networks:
-      - inception
+#  nginx:
+#    build: ./requirements/nginx
+#    container_name: nginx
+#    ports:
+#      - "443:443"
+#    volumes:
+#      - ./data/wordpress:/var/www/html
+#    depends_on:
+#      - wordpress
+#    restart: always
+#    networks:
+#      - inception
+#
+#  wordpress:
+#    build: ./requirements/wordpress
+#    container_name: wordpress
+#    volumes:
+#      - ./data/wordpress:/var/www/html
+#    environment:
+#      - DOMAIN_NAME=${DOMAIN}
+#      - WORDPRESS_DB_HOST=mariadb:3306
+#      - WORDPRESS_DB_NAME=${DB_NAME}
+#      - WORDPRESS_DB_USER=${DB_USER}
+#      - WORDPRESS_DB_PASSWORD=${DB_PASS}
+#    depends_on:
+#      - mariadb
+#    restart: always
+#    networks:
+#      - inception
 
   mariadb:
     build: ./requirements/mariadb
     container_name: mariadb
     volumes:
-      - ./data/mariadb:/var/lib/mysql
+      - ${HOME}/data/mariadb:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS}
       - MYSQL_DATABASE=${DB_NAME}
