@@ -7,18 +7,18 @@ services:
 #    ports:
 #      - "443:443"
 #    volumes:
-#      - ./data/wordpress:/var/www/html
+#      - /home/avolcy/data/wordpress:/var/www/html
 #    depends_on:
 #      - wordpress
 #    restart: always
 #    networks:
 #      - inception
-#
+#  
 #  wordpress:
 #    build: ./requirements/wordpress
 #    container_name: wordpress
 #    volumes:
-#      - ./data/wordpress:/var/www/html
+#      - /home/avolcy/data/wordpress:/var/www/html
 #    environment:
 #      - DOMAIN_NAME=${DOMAIN}
 #      - WORDPRESS_DB_HOST=mariadb:3306
@@ -30,12 +30,12 @@ services:
 #    restart: always
 #    networks:
 #      - inception
-
+  
   mariadb:
     build: ./requirements/mariadb
     container_name: mariadb
     volumes:
-      - ${HOME}/data/mariadb:/var/lib/mysql
+      - /home/avolcy/data/mariadb:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS}
       - MYSQL_DATABASE=${DB_NAME}
@@ -43,9 +43,9 @@ services:
       - MYSQL_PASSWORD=${DB_PASS}
     restart: always
     networks:
-      - inception
+        - inception
 
 networks:
   inception:
+    driver: bridge
     name: inception
-
