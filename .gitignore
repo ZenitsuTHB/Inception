@@ -1,4 +1,5 @@
 secrets
 *.swp
 
+.env*
 .env
