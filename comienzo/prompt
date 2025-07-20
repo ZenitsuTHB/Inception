@@ -1,0 +1,251 @@
+version: '3.8'
+
+services:
+  nginx:
+    build: ./src/nginx
+    container_name: nginx
+    ports:
+      - "443:443"
+    volumes:
+      - ./src/nginx/ssl:/etc/nginx/ssl
+      - ./data/wordpress:/var/www/html/wordpress
+    depends_on:
+      - wordpress
+    networks:
+      - inception_net
+    restart: unless-stopped
+
+  wordpress:
+    build: ./src/wordpress
+    container_name: wordpress
+    volumes:
+      - ./data/wordpress:/var/www/html
+    environment:
+      - WORDPRESS_DB_HOST=mariadb
+      - WORDPRESS_DB_NAME=${DB_NAME}
+      - WORDPRESS_DB_USER=${DB_USER}
+      - WORDPRESS_DB_PASSWORD=${DB_PASSWORD}
+    networks:
+      - inception_net
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+  
+  mariadb:
+    build: ./src/mariadb
+    container_name: mariadb
+    volumes:
+      - ./data/mariadb:/var/lib/mysql:Z
+      - ./src/mariadb/conf/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${DB_NAME}
+      - MARIADB_USER=${DB_USER}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
+      - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=no
+      - MARIADB_INITDB_SKIP_TZINFO=1
+    networks:
+      - inception_net
+    restart: unless-stopped
+    user: "999"
+
+networks:
+  inception_net:
+    driver: bridge
+
+volumes:
+  wordpress:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/archly/data/wordpress
+      o: bind
+  mariadb:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/archly/data/mariadb
+      o: bind
+FROM alpine:3.16
+
+# Instalar dependencias necesarias
+RUN apk update && apk add --no-cache \
+    mariadb \
+    mariadb-client \
+    tini \
+    su-exec \
+    curl \
+	&& mkdir -p /run/mysqld /var/lib/mysql \
+	&& chown -R mysql:mysql /run/mysqld /var/lib/mysql
+
+# Copiar archivos de configuración
+COPY ./conf/init.sql /docker-entrypoint-initdb.d/
+COPY ./conf/my.cnf /etc/my.cnf
+COPY ./conf/entrypoint.sh /entrypoint.sh
+
+# Permisos
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 3306
+
+ENTRYPOINT ["/sbin/tini", "--", "/entrypoint.sh"]
+CMD ["mysqld", "--user=mysql"]
+CREATE DATABASE IF NOT EXISTS wordpress;
+CREATE USER 'wp_admin'@'%' IDENTIFIED BY 'secure_wp_pass';
+GRANT ALL PRIVILEGES ON wordpress.* TO 'wp_admin'@'%';
+
+CREATE USER 'superuser'@'%' IDENTIFIED BY 'very_secure_root_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'superuser'@'%' WITH GRANT OPTION;
+
+FLUSH PRIVILEGES;
+FROM debian:bullseye
+
+RUN apt-get update && apt-get install -y \
+    nginx \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configuración SSL (auto-firmado para desarrollo)
+RUN mkdir -p /etc/nginx/ssl \
+    && openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/key.pem \
+    -out /etc/nginx/ssl/cert.pem \
+    -subj "/CN=archly.42.fr"
+
+COPY nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 443
+
+CMD ["nginx", "-g", "daemon off;"]
+events {
+    worker_connections 1024;
+}
+
+http {
+    server {
+        listen 443 ssl;
+        server_name archly.42.fr;
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_certificate /etc/nginx/ssl/cert.pem;
+        ssl_certificate_key /etc/nginx/ssl/key.pem;
+
+        root /var/www/html/wordpress;
+        index index.php;
+
+        location / {
+            try_files $uri $uri/ /index.php?$args;
+        }
+
+        location ~ \.php$ {
+            include fastcgi_params;
+            fastcgi_pass wordpress:9000;
+            fastcgi_index index.php;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        }
+    }
+}
+-----BEGIN CERTIFICATE-----
+MIIDKDCCAhCgAwIBAgIUeTEmtgtIYq2gbRnMAakMKXvF7AswDQYJKoZIhvcNAQEL
+BQAwFzEVMBMGA1UEAwwMYXZvbGN5LjQyLmZyMB4XDTI1MDcxODEwNDUwMVoXDTI2
+MDcxODEwNDUwMVowFzEVMBMGA1UEAwwMYXZvbGN5LjQyLmZyMIIBIjANBgkqhkiG
+9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsbivF48G04rj7nOpcCU7E3OohyevUz86SBzi
+IdvWN2TNj/UTaRCRcy3zedYi/bm2ktLp6cjmycQcVbbbxOnfOxDL/pGX1zG9/Jyv
+IEbiBAXqcO4JYaTARF0iI/YthHjlRpIszRVWvjd3VwOeYSOfMVW3jErySyctCNMs
+N4GCJPMLhgLt9VmD2PTQkwY9StmnQzZezqO3eaXG0x43c1KUPrSLFWQzZbusCQ84
+x+JkQeQ5WSKaJWT/5LKEd8BH/AiK+mV98j+jyeEPzd/KbyyiSIXRDp5Yb9JEli8C
+Mv2Xn92h6Gb4+dZWqStuQX/lgHzXTysxWWjfzw2I2Mvv7wLdnwIDAQABo2wwajAd
+BgNVHQ4EFgQUdFwYyp37IJd+LoRzd4GBDm5xnj4wHwYDVR0jBBgwFoAUdFwYyp37
+IJd+LoRzd4GBDm5xnj4wDwYDVR0TAQH/BAUwAwEB/zAXBgNVHREEEDAOggxhdm9s
+Y3kuNDIuZnIwDQYJKoZIhvcNAQELBQADggEBAGJa8+6UGBZdLY5CK1RALcH4+Fvz
+pS9mUjbqvZRpPo1fvCvH2jo9M2x+usxds2C7PvLYdBu0Ta9z0C4Ip3orjrzCUUz+
+/7p/EJPfynuo6+U1YvE0ltMZAnc/ya//FNTvBbgsndCVN7fe+ws+DHie5i/L8o/k
+jyp35iYcsarLonvK209xAnsULVcWemCMtv89+Tesig52JPJrvtDwemsNBnm+eImv
+NE8hdN4X+TwsMXxbXnePJK5syz5bZCdjF0aVgtsipTCdEaCcs9MrE1+cb4PE0/0h
+ZJfLfffZjs7TSw7QSJN3J2CpyWDWg/8XDas4yuYEN4PEsDqrMLsoIzxYY2I=
+-----END CERTIFICATE-----
+-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCxuK8XjwbTiuPu
+c6lwJTsTc6iHJ69TPzpIHOIh29Y3ZM2P9RNpEJFzLfN51iL9ubaS0unpyObJxBxV
+ttvE6d87EMv+kZfXMb38nK8gRuIEBepw7glhpMBEXSIj9i2EeOVGkizNFVa+N3dX
+A55hI58xVbeMSvJLJy0I0yw3gYIk8wuGAu31WYPY9NCTBj1K2adDNl7Oo7d5pcbT
+HjdzUpQ+tIsVZDNlu6wJDzjH4mRB5DlZIpolZP/ksoR3wEf8CIr6ZX3yP6PJ4Q/N
+38pvLKJIhdEOnlhv0kSWLwIy/Zef3aHoZvj51lapK25Bf+WAfNdPKzFZaN/PDYjY
+y+/vAt2fAgMBAAECggEAFBxJ8+iDZTy6PiloawBLhw/3ahPbixgEiFR8Ykh2HR6T
+BE8/Owxc6SOyAX9xxjRVrJehUIsjUoGWkzx18fplAFIOQ2hGPluqnAM+7fAXc00Y
+El9dQGdcOmAvlNIupGbpyuqPl0Vq42tzXa1TJrrZMMP6WS3B7S8psW3z+vP0vily
+Pa2WrA+pLB7rkjEhnunhmqVXmu2BC3sL7sRGQow6gl2Cfhjbid/y1SLla9YV4Itu
+P2UeSmMnMpS22E9gX9Cofr1sk+es5zFomk7GLszO7XaA6Ig2pXg9VK50VorHDz++
+wTYLr4VWp3Acex+M6tWQToaFTQQrG4XocPr9c3dDwQKBgQDdbwH6/fPqMdP4jacv
+44AODsVuxNjM/1DSv6nUaKf7WzXTwqI3LEkTrcOAheinDnJh1maYZf+g/12hypVd
+9ZtPyVamidaoGGndpbR9KA7ESbOeBlCfP8c6yusAFka9iWD88oD2MYArbmyQ6w2i
+c8JGTCt3yIMlicV4Nc4r73yEMwKBgQDNdtZFNHxXPnXpYXJAfd/LT0PYjixDXgW3
+Qh5T5L8idvatiH5FCUaF9F3bpmBpS7OcCe+6g/jJBPR03hv6WK/GZZminY/kz6AT
+GUctU7d9iYq676/J1lRmae1CSO4qqBB1bZYIHRUO5XRxP2LLqptAghKl1imom2iD
+1Wj4PuD05QKBgHo9dNdtaECqHz2AXYI3UhLwnpdmvdR1QdYGDqf+2nUNRirPsKNK
+pFDjxSBnTCck94oBRQPuku766mKNpmWHV6T1Hguz3jdPuumsN3Y8LeK4WRrsm4c+
+Oyq+qHqU0ZqCg3NAIGdIrlvLis15pT5AL0iFdh2bKKMJamTRNy7T92Y3AoGBAK13
+rpIBLRVvi5d9iTt/yolZI7va1O4PnJ3LOdW0o9aSP9PlEE5y9VK1LOT8hBuCKWMN
+VJPRRiNZhpaAy3hClizXrK2Jf2o8DTbyuZBARQO9Mx5+rJio1tschY7YChSDjlnG
+Ksww2Y2ZFgVi8aNoJ+l/qATRWpyakNP1QsmMNNstAoGAOgHcrprHpcAj5fJjv/TK
+q5DElSFs6+KwfFommDE1N4C1tiw5GyeIyS04yfMlKzpjEon/ukaynr/nxz0EL+Pn
+NvhjvoX71Skudhhl7sGCZIEOQA5rKLlAdyzrdZCoJrUA1PjmKWiQkSQ7T0njxkIb
+vwNhdz8/rZXj54aIaCB7EKM=
+-----END PRIVATE KEY-----
+FROM debian:bullseye
+
+RUN apt-get update && apt-get install -y \
+    php-fpm \
+    php-mysql \
+    php-gd \
+    php-curl \
+    php-dom \
+    php-mbstring \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Crear directorio antes de extraer WordPress
+RUN mkdir -p /var/www/html
+
+# Instalar WordPress
+RUN wget https://wordpress.org/latest.tar.gz \
+    && tar -xzf latest.tar.gz -C /var/www/html --strip-components=1 \
+    && rm latest.tar.gz \
+    && chown -R www-data:www-data /var/www/html
+
+COPY wp-config.php /var/www/html/wp-config.php
+
+# Configurar PHP-FPM
+RUN sed -i 's/;daemonize = yes/daemonize = no/' /etc/php/7.4/fpm/php-fpm.conf \
+    && echo "listen = 9000" >> /etc/php/7.4/fpm/pool.d/www.conf
+
+EXPOSE 9000
+
+CMD ["php-fpm7.4", "-F"]
+<?php
+define('DB_NAME', getenv('WORDPRESS_DB_NAME'));
+define('DB_USER', getenv('WORDPRESS_DB_USER'));
+define('DB_PASSWORD', getenv('WORDPRESS_DB_PASSWORD'));
+define('DB_HOST', getenv('WORDPRESS_DB_HOST'));
+
+define('DB_CHARSET', 'utf8');
+define('DB_COLLATE', '');
+
+define('AUTH_KEY',         '{=I)<H%TUl~p>B%^`y94)t`f^AM`afx7u=_mz}mK}peU++G{]q}j$xpUfT:.YS}A');
+define('SECURE_AUTH_KEY',  '1)Sc^A>Qnp|%ktm`2NTp!SRUQpA118xL/m&G9oKP;fCpEym6<2Yno|Cxn:pj{,3&');
+define('LOGGED_IN_KEY',    'RasU,/N|RZ?k?]zx>v ^,:o3-I+d`S0J~x[0n?.2XAP.b@^Y6!N|H<~q,m`Z<vUo');
+define('NONCE_KEY',        'ft@C86Jb[`gyFUxk2+XC+8c+&mu.3ht9@zstR^d=6jZb(O$&ZWEF9m)%.mO::PTt');
+define('AUTH_SALT',        '3`A*)O+k&NO11Okv%+|?-st.ofUOM.n/y?d>lfj-v-6<i,*)6L/+hpl4?x zQoRW');
+define('SECURE_AUTH_SALT', '?*G>:v|AR9*zcM<x7S>*iQ l@TilZcK4R?P|@uy~fDh8KrWk,)/jqk;Ktd<;Px L');
+define('LOGGED_IN_SALT',   'nRAwlCT.mNCPwTQp+,Kw_ +d`vL*fk MqSe`6Q-rYP3uS3zb-+fW7S[%-87^#/Gw');
+define('NONCE_SALT',       's9XEi|t8=luHtc8a 5fli78/g8w>sSwVy,Ayhyj=[fYr]0VYB~3. <$xw4kiO~.$');
+
+$table_prefix = 'wp_';
+
+define('WP_DEBUG', false);
+
+if (!defined('ABSPATH')) {
+    define('ABSPATH', __DIR__ . '/');
+}
+
+require_once ABSPATH . 'wp-settings.php';

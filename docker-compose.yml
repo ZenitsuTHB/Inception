@@ -62,3 +62,23 @@ services:
       - "${MARIADB_PORT}"
     restart: unless-stopped
 
+  wordpress:
+    build:
+      context: ./srcs/wordpress
+    container_name: wordpress
+    image: wordpress
+    environment:
+      - WORDPRESS_DB_HOST=mariadb:${MARIADB_PORT}
+      - WORDPRESS_DB_NAME=${MYSQL_DATABASE}
+      - WORDPRESS_DB_USER=${MYSQL_USER}
+    secrets:
+      - mdb_user_password
+    networks:
+      - ${NETWORK}
+    volumes:
+      - "wp:/var/www/html"
+    expose:
+      - "9000"
+    depends_on:
+      - mariadb
+    restart: unless-stopped

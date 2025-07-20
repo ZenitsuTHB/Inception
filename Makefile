@@ -8,8 +8,10 @@ MANDATORY_PATH= -f ./docker-compose.yml
 all: build up
 
 up:
+	sudo mkdir -p /home/avolcy/data/db
+	sudo mkdir -p /home/avolcy/data/wp
 	${COMPOSE} ${MANDATORY_PATH} up --build -d
-	mkdir -p $(HOME)/data/mysql $(HOME)/data/wordpress
+	sudo mkdir -p $(HOME)/data/mysql $(HOME)/data/wordpress
 
 down:
 	docker-compose down

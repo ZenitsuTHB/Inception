@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  nginx:
+    build: ./src/nginx
+    container_name: nginx
+    ports:
+      - "443:443"
+    volumes:
+      - ./src/nginx/ssl:/etc/nginx/ssl
+      - ./data/wordpress:/var/www/html/wordpress
+    depends_on:
+      - wordpress
+    networks:
+      - inception_net
+    restart: unless-stopped
+
+  wordpress:
+    build: ./src/wordpress
+    container_name: wordpress
+    volumes:
+      - ./data/wordpress:/var/www/html
+    environment:
+      - WORDPRESS_DB_HOST=mariadb
+      - WORDPRESS_DB_NAME=${DB_NAME}
+      - WORDPRESS_DB_USER=${DB_USER}
+      - WORDPRESS_DB_PASSWORD=${DB_PASSWORD}
+    networks:
+      - inception_net
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+  
+  mariadb:
+    build: ./src/mariadb
+    container_name: mariadb
+    volumes:
+      - ./data/mariadb:/var/lib/mysql:Z
+      - ./src/mariadb/conf/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${DB_NAME}
+      - MARIADB_USER=${DB_USER}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
+      - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=no
+      - MARIADB_INITDB_SKIP_TZINFO=1
+    networks:
+      - inception_net
+    restart: unless-stopped
+    user: "999"
+
+networks:
+  inception_net:
+    driver: bridge
+
+volumes:
+  wordpress:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/avolcy/data/wordpress
+      o: bind
+  mariadb:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/avolcy/data/mariadb
+      o: bind

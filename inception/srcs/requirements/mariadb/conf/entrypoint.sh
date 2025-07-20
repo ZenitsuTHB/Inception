@@ -1,45 +1,33 @@
 #!/bin/sh
 set -e
 
-# Inicializar base de datos solo si está vacía
 if [ ! -d "/var/lib/mysql/mysql" ]; then
-    echo "Initializing database..."
-    mysql_install_db --user=mysql --basedir=/usr --datadir=/var/lib/mysql > /dev/null
+  echo "🔧 Initializing MariaDB..."
+  mysql_install_db --user=mysql --basedir=/usr --datadir=/var/lib/mysql > /dev/null
 
-    # Ejecutar init.sql en modo bootstrap, sin abrir red
-    mysqld --user=mysql --datadir=/var/lib/mysql --skip-networking --bootstrap < /docker-entrypoint-initdb.d/init.sql
+  echo "⚙️ Executing SQL bootstrap commands..."
+  mysqld --user=mysql --datadir=/var/lib/mysql --skip-networking --bootstrap <<EOSQL
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
 
-    echo "Database initialized"
+CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
+
+CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
+GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
+
+CREATE USER IF NOT EXISTS 'editor'@'%' IDENTIFIED BY 'editorpass';
+GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO 'editor'@'%';
+
+CREATE USER IF NOT EXISTS 'editor'@'localhost' IDENTIFIED BY 'editorpass';
+GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO 'editor'@'localhost';
+
+DROP USER IF EXISTS ''@'localhost';
+DROP USER IF EXISTS ''@'$(hostname)';
+DROP DATABASE IF EXISTS test;
+
+FLUSH PRIVILEGES;
+EOSQL
+  echo "✅ MariaDB configured."
 fi
 
-# Ejecutar MariaDB en primer plano, sin trucos ni background
 exec su-exec mysql mysqld --datadir=/var/lib/mysql
 
-##!/bin/sh
-#
-#set -e
-#
-## Setup DB only if empty
-#if [ ! -d "/var/lib/mysql/mysql" ]; then
-#    echo "Initializing database..."
-#    mysql_install_db --user=mysql --basedir=/usr --datadir=/var/lib/mysql > /dev/null
-#
-#    # Start MySQL server in background
-#    mysqld_safe --user=mysql &
-#
-#    # Wait for socket to be ready
-#    while ! mysqladmin ping --silent; do
-#        sleep 1
-#    done
-#
-#    # Apply init SQL (users, passwords, privileges)
-#    echo "Applying init SQL..."
-#    mysql < /docker-entrypoint-initdb.d/init.sql
-#
-#    # Stop MySQL after setup
-#    mysqladmin shutdown
-#fi
-#
-## Final run: Safe foreground execution (PID 1)
-#exec mysqld_safe --user=mysql
-#
