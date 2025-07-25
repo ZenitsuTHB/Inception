@@ -1,0 +1,83 @@
+version: '3.9'
+
+secrets:
+  mdb_user_password:
+    file: ../secrets/mdb_user_password.txt
+  mdb_root_password:
+    file: ../secrets/mdb_root_password.txt
+
+networks:
+  appnet:
+    driver: bridge
+
+volumes:
+  wp:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${USER}/data/wp
+
+  db:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${USER}/data/db
+
+services:
+  nginx:
+    build:
+      context: ./requirements/nginx
+      args:
+        DOMAIN_NAME: ${DOMAIN_NAME}
+    container_name: nginx
+    networks:
+      - appnet
+    volumes:
+      - wp:/var/www/html
+    ports:
+      - "${NGX_PORT}:${NGX_PORT}"
+    restart: unless-stopped
+
+#  mariadb:
+#    build:
+#      context: ./requirements/mariadb
+#    container_name: mariadb
+#    networks:
+#      - appnet
+#    volumes:
+#      - db:/var/lib/mysql
+#    environment:
+#      - MDB_DIR
+#      - MDB_PORT
+#      - MYSQL_ROOT
+#      - MYSQL_USER
+#      - MYSQL_DATABASE
+#    secrets:
+#      - mdb_user_password
+#      - mdb_root_password
+#    expose:
+#      - "${MDB_PORT}"
+#    restart: unless-stopped
+#
+#  wordpress:
+#    build:
+#      context: ./requirements/wordpress
+#    container_name: wordpress
+#    image: wordpress
+#    networks:
+#      - appnet
+#    volumes:
+#      - wp:/var/www/html
+#    environment:
+#      WORDPRESS_DB_HOST: mariadb:${DB_PORT}
+#      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
+#      WORDPRESS_DB_USER: ${MYSQL_USER}
+#    secrets:
+#      - mdb_user_password
+#    depends_on:
+#      - mariadb
+#    expose:
+#      - "${WDP_PORT}"
+#    restart: unless-stopped
