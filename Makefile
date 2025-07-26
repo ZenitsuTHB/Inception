@@ -57,6 +57,13 @@ status:
 	@echo "\n\n📦 Docker images:"
 	@$(DOCKER) images
 
+info:
+	@echo "Project volumes:"
+	@echo "  ➤ DB: $(DB_VOLUME)"
+	@echo "  ➤ WP: $(WP_VOLUME)"
+	@echo "Port bindings:"
+	@grep 'PORT' .env | sed 's/^/  ➤ /'
+
 # =====================
 # Phony Declarations
 # =====================

@@ -1,58 +1,440 @@
-Chapter IV
-Mandatory part
-This project involves setting up a small infrastructure composed of different services un-
-der specific rules. The whole project has to be done in a virtual machine. You must use
-Docker Compose.
-Each Docker image must have the same name as its corresponding service.
-Each service has to run in a dedicated container.
-For performance reasons, the containers must be built from either the penultimate stable
-version of Alpine or Debian. The choice is yours.
-You also have to write your own Dockerfiles, one per service. The Dockerfiles must
-be called in your docker-compose.yml by your Makefile.
-This means you must build the Docker images for your project yourself. It is then forbid-
-den to pull ready-made Docker images or use services such as DockerHub (Alpine/Debian
-being excluded from this rule).
-You then have to set up:
-• A Docker container that contains NGINX with TLSv1.2 or TLSv1.3 only.
-• A Docker container that contains WordPress with php-fpm (it must be installed
-and configured) only, without nginx.
-• A Docker container that contains only MariaDB, without nginx.
-• A volume that contains your WordPress database.
-• A second volume that contains your WordPress website files.
-• A docker-network that establishes the connection between your containers.
-Your containers must restart automatically in case of a crash.
-A Docker container is not a virtual machine. Thus, it is not
-recommended to use any hacky patches based on ’tail -f’ and similar
-methods when trying to run it. Read about how daemons work and
-whether it’s a good idea to use them or not.
-5
-Inception
-Of course, using network: host or --link or links: is forbidden.
-The network line must be present in your docker-compose.yml file.
-Your containers must not be started with a command running an
-infinite loop. Thus, this also applies to any command used as
-entrypoint, or used in entrypoint scripts. The following are a
-few prohibited hacky patches: tail -f, bash, sleep infinity, while
-true.
-Read about PID 1 and the best practices for writing Dockerfiles.
-• In your WordPress database, there must be two users, one of them being the admin-
-istrator. The administrator’s username must not contain ’admin’, ’Admin’, ’admin-
-istrator’, or ’Administrator’ (e.g., admin, administrator, Administrator, admin-123,
-etc.).
-Your volumes will be available in the /home/login/data folder of the
-host machine using Docker. Of course, you have to replace the login
-with yours.
-To simplify the process, you must configure your domain name to point to your local
-IP address.
-This domain name must be login.42.fr. Again, you must use your own login.
-For example, if your login is ’wil’, wil.42.fr will redirect to the IP address pointing to
-Wil’s website.
-The latest tag is prohibited.
-Passwords must not be present in your Dockerfiles.
-The use of environment variables is mandatory.
-It is also strongly recommended to use a .env file to store
-environment variables and to use the Docker secrets to store any
-confidential information.
-Your NGINX container must be the sole entry point into your
-infrastructure, accessible only via port 443, using the TLSv1.2
-or TLSv1.3 protocol.
+# ================== #
+# Inception Makefile #
+# ================== #
+
+DOCKER := docker
+COMPOSE := $(DOCKER) compose
+
+COMPOSE_FILE := -f ./srcs/docker-compose.yml
+
+DATA_ROOT := /home/$(USER)/data
+DB_VOLUME := $(DATA_ROOT)/db
+WP_VOLUME := $(DATA_ROOT)/wp
+
+# =====================
+# Main Targets
+# =====================
+
+all: up
+
+# Build containers
+build:
+	@echo "🚀 Building containers..."
+	$(COMPOSE) $(COMPOSE_FILE) build
+
+# Start all services
+up: ensure-volumes
+	@echo "🔼 Starting services..."
+	$(COMPOSE) $(COMPOSE_FILE) up -d
+
+# Stop and remove containers
+stop:
+	@echo "🔽 Stopping services..."
+	$(COMPOSE) $(COMPOSE_FILE) down
+
+# Rebuild project
+re: stop build up
+
+# Ensure volumes exist
+ensure-volumes:
+	@echo "📂 Ensuring data volumes..."
+	mkdir -p $(DB_VOLUME) $(WP_VOLUME)
+
+# Delete all docker images
+clean-images:
+	@echo "🗑️ Removing all Docker images..."
+	$(DOCKER) rmi -f $$(docker images -q)
+
+# Full system prune
+clean: stop
+	@echo "🧹 Performing deep cleanup..."
+	$(DOCKER) system prune -a -f --volumes
+
+# Show status of containers and images
+status:
+	@echo "📊 Docker container status:"
+	@$(DOCKER) ps
+	@echo "\n\n📦 Docker images:"
+	@$(DOCKER) images
+
+# =====================
+# Phony Declarations
+# =====================
+.PHONY: all build up stop re ensure-volumes clean-images clean status
+
+hierarchy
+ srcs
+    ├── docker-compose.yml
+    └── requirements
+        ├── mariadb
+        │   ├── Dockerfile
+        │   └── entry.sh
+        ├── nginx
+        │   ├── default.conf
+        │   └── Dockerfile
+        └── wordpress
+            ├── conf
+            │   └── www.conf
+            ├── Dockerfile
+            └── entry.sh
+
+./secrets
+mdb_root_password.txt   mdb_user_password.txt
+
+docker-compose.yml
+#file docker-compose.yml
+
+secrets:
+  mdb_user_password:
+    file: ../secrets/mdb_user_password.txt
+  mdb_root_password:
+    file: ../secrets/mdb_root_password.txt
+
+networks:
+  appnet:
+    driver: bridge
+
+volumes:
+  wp:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${USER}/data/wp
+
+  db:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${USER}/data/db
+
+services:
+  nginx:
+    build:
+      context: ./requirements/nginx
+      args:
+        DOMAIN_NAME: ${DOMAIN_NAME}
+    container_name: nginx
+    networks:
+      - appnet
+    volumes:
+      - wp:/var/www/html
+    ports:
+      - "${NGX_PORT}:${NGX_PORT}"
+    restart: unless-stopped
+
+  mariadb:
+    build:
+      context: ./requirements/mariadb
+    container_name: mariadb
+    networks:
+      - appnet
+    volumes:
+      - db:/var/lib/mysql
+    environment:
+      - MDB_DIR
+      - MDB_PORT
+      - MYSQL_ROOT
+      - MYSQL_USER
+      - MYSQL_DATABASE
+    secrets:
+      - mdb_user_password
+      - mdb_root_password
+    expose:
+      - "${MDB_PORT}"
+    restart: unless-stopped
+
+  wordpress:
+    build:
+      context: ./requirements/wordpress
+    container_name: wordpress
+    networks:
+      - appnet
+    volumes:
+      - wp:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: mariadb:${MDB_PORT}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+    secrets:
+      - mdb_user_password
+    depends_on:
+      - mariadb
+    expose:
+      - "${WDP_PORT}"
+    restart: unless-stopped
+
+MariaDB
+DOCKERFILE
+# Fichier : nginx/Dockerfile
+# Nous choisissons Alpine pour sa légèreté
+FROM alpine:3.19
+
+RUN apk update && apk add --no-cache mariadb-client mariadb
+
+COPY --chmod=744 ./entry.sh /
+
+ENTRYPOINT ["./entry.sh"]
+
+EXPOSE 3306
+
+# Lançons NGINX au démarrage
+CMD ["mysqld"]
+
+entry.sh
+#!/bin/sh
+
+set -e
+
+mysql_config_file()
+{
+	echo "Copying configuration file"
+	cat << EOF > /etc/my.cnf
+	[mysqld]
+	user=mysql
+	datadir=${MDB_DIR}
+	port=${MDB_PORT}
+	bind-address=0.0.0.0
+	socket=/run/mysqld/mysqld.sock
+EOF
+}
+
+create_database()
+{
+	db_password_file=/run/secrets/mdb_user_password
+	db_root_password_file=/run/secrets/mdb_root_password
+
+	if [ -f $db_password_file ] && [ -f $db_root_password_file ]; then
+
+	db_password=$(cat $db_password_file)
+	db_root_password=$(cat $db_root_password_file)
+
+cat << EOF > ${MDB_DIR}/init-db.sql
+	CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
+
+	CREATE USER IF NOT EXISTS "${MYSQL_ROOT}"@"%" IDENTIFIED BY "$db_root_password";
+	ALTER USER 'root'@'localhost' IDENTIFIED BY "$db_root_password";
+	GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO "${MYSQL_ROOT}"@"%" WITH GRANT OPTION;
+
+	CREATE USER IF NOT EXISTS "${MYSQL_USER}"@"localhost" IDENTIFIED BY "$db_password";
+	GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO "${MYSQL_USER}"@"localhost";
+	CREATE USER IF NOT EXISTS "${MYSQL_USER}"@"%" IDENTIFIED BY "$db_password";
+	GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO "${MYSQL_USER}"@"%";
+
+	FLUSH PRIVILEGES;
+EOF
+
+	else
+		echo "$db_password_file or $db_root_password_file not found..."
+	fi
+}
+
+
+start_database()
+{
+
+	echo "Creating Database"
+	if [ -d "${MDB_DIR}/mysql" ]; then
+		echo "Database already initialized, starting MariaDB..."
+	else
+
+	mysql_install_db --user=mysql --datadir=${MDB_DIR} > /dev/null 2>&1
+
+	mysqld --datadir=${MDB_DIR} &
+
+	while ! mysqladmin ping --silent; do
+	    echo "Waiting for Mariadb..."
+	    sleep 1
+	done
+
+	create_database
+
+	mysql -u root -p"$db_root_password" < ${MDB_DIR}/init-db.sql > /dev/null 2>&1
+	mysqladmin shutdown -u root -p"$db_root_password"
+fi
+	
+echo "Database Created!"
+
+}
+
+add_group()
+{
+	group=$1
+	user=$2
+	dir=$3
+
+	if  ! getent group "$group" > /dev/null 2>&1; then
+		addgroup -S $group; 
+	fi 
+	if  ! getent passwd "$user" > /dev/null 2>&1; then
+		adduser -S -D -H -s /sbin/nologin -g $group $user;
+	fi
+	mkdir -p /run/mysqld
+	chown -R $user:$group $dir	
+	chown -R $user:$group /run/mysqld	
+}
+
+init_mdb() {
+	add_group "mysql" "mysql" "/var/lib/mysql"
+	mysql_config_file 
+	start_database
+	exec $@
+}
+
+if [ $1 = "mysqld" ];
+then 
+       init_mdb "$@"
+else
+ 	exec "$@"	
+fi
+
+NGINX
+
+DOCKERFILE
+# Fichier : nginx/Dockerfile
+# Nous choisissons Alpine pour sa légèreté
+FROM alpine:3.18
+
+ARG DOMAIN_NAME
+
+# Installons NGINX et OpenSSL (pour TLS)
+RUN apk update && apk add --no-cache nginx openssl
+
+# Créons un dossier pour les certificats
+RUN mkdir -p /etc/nginx/ssl
+
+# Générons un certificat auto-signé (pour le test)
+RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/nginx.key \
+    -out /etc/nginx/ssl/nginx.crt \
+    -subj "/C=FR/ST=Paris/L=Paris/O=42/CN=$DOMAIN_NAME"
+
+# Copions la configuration NGINX
+COPY default.conf /etc/nginx/nginx.conf
+
+# Exposons le port 443 (HTTPS)
+EXPOSE 443
+
+# Lançons NGINX au démarrage
+CMD ["nginx", "-g", "daemon off;"]
+
+default.conf, not complete yet as I should render wordpress
+# Fichier : nginx/nginx.conf
+events {
+    worker_connections 1024;
+}
+
+http {
+    server {
+        listen 443 ssl;
+        server_name localhost;
+
+        ssl_certificate /etc/nginx/ssl/nginx.crt;
+        ssl_certificate_key /etc/nginx/ssl/nginx.key;
+        
+        # Imposons TLS 1.2 ou 1.3 seulement
+        ssl_protocols TLSv1.2 TLSv1.3;
+
+        location / {
+            return 200 "Bienvenue dans le royaume de NGINX sécurisé !";
+            add_header Content-Type text/plain;
+        }
+    }
+}
+
+WORDPRESS
+
+DOCKERFILE
+FROM debian:bookworm
+
+# Install dependencies
+RUN apt update && apt upgrade -y && \
+    apt install -y \
+        php php-fpm php-mysql php-curl php-xml php-mbstring \
+        php-zip php-gd php-cli curl less mariadb-client unzip && \
+    apt clean && rm -rf /var/lib/apt/lists/*
+
+# Setup directories
+RUN mkdir -p /run/php /var/www/html && \
+    chown -R www-data:www-data /run/php /var/www/html && \
+    chmod -R 755 /var/www/html
+
+# Install wp-cli
+RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
+    chmod +x wp-cli.phar && mv wp-cli.phar /usr/local/bin/wp
+
+COPY ./conf/www.conf /etc/php/8.2/fpm/pool.d/www.conf
+COPY entry.sh /entry.sh
+RUN chmod +x /entry.sh
+
+WORKDIR /var/www/html
+ENTRYPOINT ["/entry.sh"]
+
+entry.sh
+#!/bin/bash
+set -e
+
+echo "🚀 Starting WordPress container..."
+
+if [ ! -f ./wp-config.php ]; then
+  echo "🔧 Downloading WordPress..."
+  wp core download --allow-root
+
+  echo "⚙️ Configuring WordPress..."
+  wp config create \
+    --dbname=$MYSQL_DATABASE \
+    --dbuser=$MYSQL_USER \
+    --dbpass=$MYSQL_PASSWORD \
+    --dbhost=$MYSQL_HOSTNAME \
+    --allow-root
+
+  echo "🛠 Installing WordPress..."
+  wp core install \
+    --url=$DOMAIN_NAME \
+    --title="$WORDPRESS_TITLE" \
+    --admin_user=$WORDPRESS_ADMIN \
+    --admin_password=$WORDPRESS_ADMIN_PASS \
+    --admin_email=$WORDPRESS_ADMIN_EMAIL \
+    --skip-email \
+    --allow-root
+
+  echo "👤 Creating additional user..."
+  wp user create $WORDPRESS_USER $WORDPRESS_EMAIL \
+    --role=author \
+    --user_pass=$WORDPRESS_USER_PASS \
+    --allow-root
+
+  echo "🎨 Installing and activating theme..."
+  wp theme install twentytwentytwo --activate --allow-root
+fi
+
+echo "✅ Starting PHP-FPM..."
+exec /usr/sbin/php-fpm8.2 -F
+
+./conf
+[wordpress_site]          ; ✅ Pool name (can be any unique name)
+
+user = www-data           ; ✅ User the PHP process runs as
+group = www-data          ; ✅ Group the PHP process runs as
+
+listen = 0.0.0.0:9000     ; ✅ PHP-FPM listens on TCP port 9000 (vs. Unix socket)
+listen.owner = www-data   ; ✅ Owner of socket or TCP port (safe default)
+listen.group = www-data
+listen.mode = 0660        ; ✅ Permissions on the socket (not needed for TCP but okay)
+
+pm = dynamic              ; ✅ Process manager mode: dynamic (recommended)
+pm.max_children = 25      ; Max total PHP worker processes
+pm.start_servers = 5      ; Start 5 at launch
+pm.min_spare_servers = 1  ; Minimum idle servers
+pm.max_spare_servers = 10 ; Max idle servers
+
+.env
+
+DOMAIN_NAME=avolcy.42.fr
+
+#PORTS
+MDB_PORT=3306
+NGX_PORT=443
+WDP_PORT=9000
+

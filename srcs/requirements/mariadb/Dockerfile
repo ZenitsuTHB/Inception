@@ -11,4 +11,5 @@ ENTRYPOINT ["./entry.sh"]
 EXPOSE 3306
 
 # Lançons NGINX au démarrage
-CMD ["mysqld"]
+# CMD ["mysqld"]
+CMD ["sh", "-c", "exec mysqld"]

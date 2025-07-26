@@ -1,17 +1,39 @@
-#! /bin/bash
+#!/bin/bash
+set -e
 
-if [ ! -f ./wp-config.php ]
-then
-	wp core download --allow-root
-	wp config create --dbname=$MYSQL_DATABASE --dbuser=$MYSQL_USER \ 
-		--dbpass=$MYSQL_PASSWORD --dbhost=$MYSQL_HOSTNAME --allow-root
-	wp core install --url=$DONAIN_NAME --title="$WORDPRESS_TITLE" \ 
-		--admin_user=$WORDPRESS_ADMIM --admin_password=$WORDPRESS_ADMIM_PASS \ 
-		--admin_email=$WORDPRESS_ADMIM_EMAIL --skip-email --allow-root
-	wp user create $WORDPRESS_USER $WORDPRESS_EMAIL --role=author \ 
-		--user_pass=$WORDPRESS_USER_PASS --allow-root
-	wp theme install twentytwentytwo --activate --allow-root
+echo "🚀 Starting WordPress container..."
+
+if [ ! -f ./wp-config.php ]; then
+  echo "🔧 Downloading WordPress..."
+  wp core download --allow-root
+
+  echo "⚙️ Configuring WordPress..."
+  wp config create \
+    --dbname=$MYSQL_DATABASE \
+    --dbuser=$MYSQL_USER \
+    --dbpass=$MYSQL_PASSWORD \
+    --dbhost=$MYSQL_HOSTNAME \
+    --allow-root
+
+  echo "🛠 Installing WordPress..."
+  wp core install \
+    --url=$DOMAIN_NAME \
+    --title="$WORDPRESS_TITLE" \
+    --admin_user=$WORDPRESS_ADMIN \
+    --admin_password=$WORDPRESS_ADMIN_PASS \
+    --admin_email=$WORDPRESS_ADMIN_EMAIL \
+    --skip-email \
+    --allow-root
+
+  echo "👤 Creating additional user..."
+  wp user create $WORDPRESS_USER $WORDPRESS_EMAIL \
+    --role=author \
+    --user_pass=$WORDPRESS_USER_PASS \
+    --allow-root
+
+  echo "🎨 Installing and activating theme..."
+  wp theme install twentytwentytwo --activate --allow-root
 fi
 
-/usr/sbin/php-fpm7.4 -F;
-
+echo "✅ Starting PHP-FPM..."
+exec /usr/sbin/php-fpm8.2 -F
