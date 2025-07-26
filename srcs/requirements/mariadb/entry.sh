@@ -9,7 +9,7 @@ mysql_config_file()
 	[mysqld]
 	user=mysql
 	datadir=${MDB_DIR}
-	port=${MARIADB_PORT}
+	port=${MDB_PORT}
 	bind-address=0.0.0.0
 	socket=/run/mysqld/mysqld.sock
 EOF

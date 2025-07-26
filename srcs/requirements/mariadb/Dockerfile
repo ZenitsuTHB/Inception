@@ -1,6 +1,6 @@
 # Fichier : nginx/Dockerfile
 # Nous choisissons Alpine pour sa légèreté
-FROM alpine:3.21
+FROM alpine:3.19
 
 RUN apk update && apk add --no-cache mariadb-client mariadb
 
