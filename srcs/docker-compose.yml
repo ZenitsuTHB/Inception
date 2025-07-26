@@ -49,11 +49,11 @@ services:
     volumes:
       - db:/var/lib/mysql
     environment:
-      - MDB_DIR
-      - MDB_PORT
-      - MYSQL_ROOT
-      - MYSQL_USER
-      - MYSQL_DATABASE
+      - MDB_DIR: ${MDB_DIR}
+      - MDB_PORT: ${MDB_PORT}
+      - MYSQL_ROOT: ${MYSQL_ROOT}
+      - MYSQL_USER: ${MYSQL_USER}
+      - MYSQL_DATABASE: ${MYSQL_DATABASE}
     secrets:
       - mdb_user_password
       - mdb_root_password
@@ -73,6 +73,7 @@ services:
       WORDPRESS_DB_HOST: mariadb:${MDB_PORT}
       WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
       WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_USER_PASSWORD}
     secrets:
       - mdb_user_password
     depends_on:
