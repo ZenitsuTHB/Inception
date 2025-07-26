@@ -1,0 +1,25 @@
+FROM alpine:3.19
+
+RUN apk update && apk add --no-cache \
+    php php-fpm php-mysqli php-curl php-dom php-exif php-fileinfo \
+    php-mbstring php-opcache php-session php-tokenizer php-xml php-xmlreader php-zip \
+    php-phar php-simplexml php-iconv php-gd \
+    mariadb-client curl su-exec bash
+
+# Add user + group without fixed GID/UID (avoid collisions)
+RUN addgroup www && adduser -D -G www www
+
+# Determine PHP version directory (e.g., php81, php82)
+RUN PHP_FPM_DIR=$(find /etc -maxdepth 1 -name 'php*' -type d | head -n 1)/php-fpm.d && \
+    sed -i 's|user = nobody|user = www|' $PHP_FPM_DIR/www.conf && \
+    sed -i 's|group = nobody|group = www|' $PHP_FPM_DIR/www.conf && \
+    sed -i 's|listen = 127.0.0.1:9000|listen = 9000|' $PHP_FPM_DIR/www.conf && \
+    mkdir -p /var/www/html && chown -R www:www /var/www/html
+
+WORKDIR /var/www/html
+
+COPY --chmod=744 ./entry.sh /entry.sh
+
+EXPOSE 9000
+
+ENTRYPOINT ["/entry.sh"]

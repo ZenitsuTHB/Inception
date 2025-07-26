@@ -1,31 +1,17 @@
-#!/bin/sh
+#! /bin/bash
 
-set -e
-
-secret_pw_file="/run/secrets/mdb_user_password"
-if [ ! -f "$secret_pw_file" ]; then
-    echo "❌ Cannot find DB password secret!"
-    exit 1
+if [ ! -f ./wp-config.php ]
+then
+	wp core download --allow-root
+	wp config create --dbname=$MYSQL_DATABASE --dbuser=$MYSQL_USER \ 
+		--dbpass=$MYSQL_PASSWORD --dbhost=$MYSQL_HOSTNAME --allow-root
+	wp core install --url=$DONAIN_NAME --title="$WORDPRESS_TITLE" \ 
+		--admin_user=$WORDPRESS_ADMIM --admin_password=$WORDPRESS_ADMIM_PASS \ 
+		--admin_email=$WORDPRESS_ADMIM_EMAIL --skip-email --allow-root
+	wp user create $WORDPRESS_USER $WORDPRESS_EMAIL --role=author \ 
+		--user_pass=$WORDPRESS_USER_PASS --allow-root
+	wp theme install twentytwentytwo --activate --allow-root
 fi
 
-WORDPRESS_DB_PASSWORD=$(cat "$secret_pw_file")
+/usr/sbin/php-fpm7.4 -F;
 
-echo "🔎 DNS check: pinging mariadb..."
-ping -c 3 mariadb || echo "❌ mariadb DNS resolution failed"
-
-echo "🌐 Testing DB port 3306 reachability..."
-nc -zv mariadb 3306 || echo "❌ mariadb:3306 not reachable"
-
-echo "🔐 Testing login..."
-mysql -h mariadb -u"$WORDPRESS_DB_USER" -p"$WORDPRESS_DB_PASSWORD" -e "SELECT 1;" || echo "❌ MariaDB login failed"
-
-echo "🔄 ENTRYPOINT: Starting WordPress setup..."
-
-until mysql -h mariadb -u"$WORDPRESS_DB_USER" -p"$WORDPRESS_DB_PASSWORD" -e "SELECT 1;" >/dev/null 2>&1; do
-    echo "⌛ Waiting for MariaDB to allow logins..."
-    sleep 1
-done
-
-echo "✅ MariaDB is accepting connections!"
-
-# Rest of your WordPress setup logic...
