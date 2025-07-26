@@ -4,8 +4,7 @@ FROM debian:bookworm
 RUN apt update && apt upgrade -y && \
     apt install -y \
         php php-fpm php-mysql php-curl php-xml php-mbstring \
-        php-zip php-gd php-cli curl less mariadb-client unzip && \
-    apt clean && rm -rf /var/lib/apt/lists/*
+        php-zip php-gd php-cli curl less mariadb-client unzip   #apt clean && rm -rf /var/lib/apt/lists/*
 
 # Setup directories
 RUN mkdir -p /run/php /var/www/html && \

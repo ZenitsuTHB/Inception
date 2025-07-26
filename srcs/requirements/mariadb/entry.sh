@@ -85,7 +85,9 @@ init_mdb() {
     add_group "mysql" "mysql" "/var/lib/mysql"
     mysql_config_file
     start_database
-    exec "$@"
+	exec su-exec mysql $@
+	#exec mysqld --user=mysql --datadir=${MDB_DIR}
+    #exec "$@"
 }
 
 if [ "$1" = "mysqld" ]; then

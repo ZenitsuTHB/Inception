@@ -70,10 +70,10 @@ services:
     volumes:
       - wp:/var/www/html
     environment:
-      WORDPRESS_DB_HOST: mariadb:${MDB_PORT}
+      WORDPRESS_DB_HOST: mariadb
       WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
       WORDPRESS_DB_USER: ${MYSQL_USER}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_USER_PASSWORD}
+      WORDPRESS_DB_PASSWORD_FILE: /run/secrets/mdb_user_password
     secrets:
       - mdb_user_password
     depends_on:
