@@ -49,11 +49,11 @@ services:
     volumes:
       - db:/var/lib/mysql
     environment:
-      - MDB_DIR: ${MDB_DIR}
-      - MDB_PORT: ${MDB_PORT}
-      - MYSQL_ROOT: ${MYSQL_ROOT}
-      - MYSQL_USER: ${MYSQL_USER}
-      - MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MDB_DIR: ${MDB_DIR}
+      MDB_PORT: ${MDB_PORT}
+      MYSQL_ROOT: ${MYSQL_ROOT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
     secrets:
       - mdb_user_password
       - mdb_root_password

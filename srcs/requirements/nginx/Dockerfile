@@ -1,6 +1,6 @@
 # Fichier : nginx/Dockerfile
 # Nous choisissons Alpine pour sa légèreté
-FROM alpine:3.18
+FROM alpine:3.19
 
 ARG DOMAIN_NAME
 

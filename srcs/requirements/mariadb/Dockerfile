@@ -1,8 +1,8 @@
-# Fichier : nginx/Dockerfile
+# Fichier : Mariadb/Dockerfile
 # Nous choisissons Alpine pour sa légèreté
 FROM alpine:3.19
 
-RUN apk update && apk add --no-cache mariadb-client mariadb
+RUN apk update && apk add --no-cache mariadb
 
 COPY --chmod=744 ./entry.sh /
 
