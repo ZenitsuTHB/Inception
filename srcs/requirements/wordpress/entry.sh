@@ -7,6 +7,12 @@ if [ ! -f ./wp-config.php ]; then
   echo "🔧 Downloading WordPress..."
   wp core download --allow-root
 
+  echo "⏳ Waiting for MariaDB to be ready..."
+  while ! mysqladmin ping -h mariadb -u"$MYSQL_USER" -p"$(cat /run/secrets/mdb_user_password)" --silent; do
+      echo "⏳ MariaDB is not ready yet..."
+      sleep 2
+  done
+  
   echo "⚙️ Configuring WordPress..."
   dbpass=$(cat /run/secrets/mdb_user_password)
   wp config create \
@@ -15,22 +21,6 @@ if [ ! -f ./wp-config.php ]; then
     --dbpass=$dbpass \
     --dbhost=mariadb \
 	--skip-check \
-    --allow-root
-
-  echo "⏳ Waiting for MariaDB to be ready..."
-  while ! mysqladmin ping -h mariadb -u"$MYSQL_USER" -p"$(cat /run/secrets/mdb_user_password)" --silent; do
-      echo "⏳ MariaDB is not ready yet..."
-      sleep 2
-  done
-
-  echo "🛠 Installing WordPress..."
-  wp core install \
-    --url=$DOMAIN_NAME \
-    --title="$WORDPRESS_TITLE" \
-    --admin_user=$WORDPRESS_ADMIN \
-    --admin_password=$WORDPRESS_ADMIN_PASS \
-    --admin_email=$WORDPRESS_ADMIN_EMAIL \
-    --skip-email \
     --allow-root
 
   echo "👤 Creating additional user..."
