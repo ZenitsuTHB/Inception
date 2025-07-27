@@ -23,6 +23,16 @@ if [ ! -f ./wp-config.php ]; then
 	--skip-check \
     --allow-root
 
+  echo "🛠 Installing WordPress..."
+  wp core install \
+    --url="https://$DOMAIN_NAME" \
+    --title="$WORDPRESS_TITLE" \
+    --admin_user=$WORDPRESS_ADMIN \
+    --admin_password=$WORDPRESS_ADMIN_PASS \
+    --admin_email=$WORDPRESS_ADMIN_EMAIL \
+    --skip-email \
+    --allow-root
+
   echo "👤 Creating additional user..."
   wp user create $WORDPRESS_USER $WORDPRESS_EMAIL \
     --role=author \
