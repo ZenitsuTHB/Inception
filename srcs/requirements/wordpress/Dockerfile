@@ -1,4 +1,4 @@
-FROM debian:bookworm
+FROM debian:bullseye
 
 # Install dependencies
 RUN apt update && apt upgrade -y && \
