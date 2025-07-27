@@ -34,7 +34,7 @@ if [ ! -f ./wp-config.php ]; then
     --allow-root
 
   echo "👤 Creating additional user..."
-  wp user create $WORDPRESS_USER $WORDPRESS_EMAIL \
+  wp user create $WORDPRESS_USER $WORDPRESS_USER_EMAIL \
     --role=author \
     --user_pass=$WORDPRESS_USER_PASS \
     --allow-root
