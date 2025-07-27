@@ -84,6 +84,8 @@ init_mdb() {
     mysql_config_file
     start_database
 	exec su-exec mysql $@
+	echo "✅ MariaDB initialized!"
+	touch /var/lib/mysql/.mariadb_ready
 	#exec mysqld --user=mysql --datadir=${MDB_DIR}
     #exec "$@"
 }

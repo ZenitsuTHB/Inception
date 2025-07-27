@@ -12,9 +12,16 @@ if [ ! -f ./wp-config.php ]; then
   wp config create \
     --dbname=$MYSQL_DATABASE \
     --dbuser=$MYSQL_USER \
-	--dbpass=$dbpass \
+    --dbpass=$dbpass \
     --dbhost=mariadb \
+	--skip-check \
     --allow-root
+
+  echo "⏳ Waiting for MariaDB to be ready..."
+  while ! mysqladmin ping -h mariadb -u"$MYSQL_USER" -p"cat /run/secrets/mdb_user_password)" --silent; do
+	  echo "⏳ MariaDB is not ready yet..."
+	  sleep 2
+  done
 
   echo "🛠 Installing WordPress..."
   wp core install \
@@ -38,3 +45,4 @@ fi
 
 echo "✅ Starting PHP-FPM..."
 exec /usr/sbin/php-fpm8.2 -F
+
