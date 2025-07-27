@@ -33,7 +33,7 @@ stop:
 	$(COMPOSE) $(COMPOSE_FILE) down
 
 # Rebuild project
-re: stop build up
+re: clean build up
 
 # Ensure volumes exist
 ensure-volumes:

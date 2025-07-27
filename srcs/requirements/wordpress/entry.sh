@@ -8,11 +8,12 @@ if [ ! -f ./wp-config.php ]; then
   wp core download --allow-root
 
   echo "⚙️ Configuring WordPress..."
+  dbpass=$(cat /run/secrets/mdb_user_password)
   wp config create \
     --dbname=$MYSQL_DATABASE \
     --dbuser=$MYSQL_USER \
-    --dbpass=$MYSQL_PASSWORD \
-    --dbhost=$MYSQL_HOSTNAME \
+	--dbpass=$dbpass \
+    --dbhost=mariadb \
     --allow-root
 
   echo "🛠 Installing WordPress..."
