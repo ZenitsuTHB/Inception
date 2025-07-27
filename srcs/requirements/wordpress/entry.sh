@@ -12,7 +12,7 @@ if [ ! -f ./wp-config.php ]; then
       echo "⏳ MariaDB is not ready yet..."
       sleep 2
   done
-  
+
   echo "⚙️ Configuring WordPress..."
   dbpass=$(cat /run/secrets/mdb_user_password)
   wp config create \
@@ -20,7 +20,7 @@ if [ ! -f ./wp-config.php ]; then
     --dbuser=$WORDPRESS_DB_USER \
     --dbpass=$dbpass \
     --dbhost=mariadb \
-	--skip-check \
+    --skip-check \
     --allow-root
 
   echo "🛠 Installing WordPress..."
@@ -44,5 +44,4 @@ if [ ! -f ./wp-config.php ]; then
 fi
 
 echo "✅ Starting PHP-FPM..."
-exec php-fpm7.4 -F
-
+exec /usr/sbin/php-fpm7.4 -F
