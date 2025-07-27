@@ -10,17 +10,17 @@ if [ ! -f ./wp-config.php ]; then
   echo "⚙️ Configuring WordPress..."
   dbpass=$(cat /run/secrets/mdb_user_password)
   wp config create \
-    --dbname=$MYSQL_DATABASE \
-    --dbuser=$MYSQL_USER \
+    --dbname=$WORDPRESS_DB_NAME \
+    --dbuser=$WORDPRESS_DB_USER \
     --dbpass=$dbpass \
     --dbhost=mariadb \
 	--skip-check \
     --allow-root
 
   echo "⏳ Waiting for MariaDB to be ready..."
-  while ! mysqladmin ping -h mariadb -u"$MYSQL_USER" -p"cat /run/secrets/mdb_user_password)" --silent; do
-	  echo "⏳ MariaDB is not ready yet..."
-	  sleep 2
+  while ! mysqladmin ping -h mariadb -u"$MYSQL_USER" -p"$(cat /run/secrets/mdb_user_password)" --silent; do
+      echo "⏳ MariaDB is not ready yet..."
+      sleep 2
   done
 
   echo "🛠 Installing WordPress..."
